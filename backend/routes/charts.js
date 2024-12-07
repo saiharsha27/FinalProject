@@ -1,32 +1,57 @@
+// routes/charts.js
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 
-const SECRET_KEY = 'My super secret key';
+const SECRET_KEY = process.env.JWT_SECRET || 'My super secret key';
 
+// Sample data
 const chartData = {
-    summary: [ { year: 2020, investment: 150 }, { year: 2021, investment: 200 } ],
-    reports: [ { region: 'EMDEs', adoption: 15 }, { region: 'Advanced Economies', adoption: 60 } ]
+    summary: [
+        { year: 2020, investment: 150 },
+        { year: 2021, investment: 200 }
+    ],
+    reports: [
+        { region: 'EMDEs', adoption: 15 },
+        { region: 'Advanced Economies', adoption: 60 }
+    ]
 };
 
+// Authentication middleware
 const authenticate = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).send('Token required.');
-
     try {
-        req.user = jwt.verify(token.split(' ')[1], SECRET_KEY);
+        const token = req.headers.authorization?.split(' ')[1];
+        
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication token required' });
+        }
+
+        const decoded = jwt.verify(token, SECRET_KEY);
+        req.user = decoded;
         next();
-    } catch {
-        res.status(403).send('Invalid token.');
+    } catch (error) {
+        console.error('Auth error:', error);
+        return res.status(403).json({ message: 'Invalid or expired token' });
     }
 };
 
+// Protected routes
 router.get('/summary', authenticate, (req, res) => {
-    res.json(chartData.summary);
+    try {
+        res.json(chartData.summary);
+    } catch (error) {
+        console.error('Summary error:', error);
+        res.status(500).json({ message: 'Error fetching summary data' });
+    }
 });
 
 router.get('/reports', authenticate, (req, res) => {
-    res.json(chartData.reports);
+    try {
+        res.json(chartData.reports);
+    } catch (error) {
+        console.error('Reports error:', error);
+        res.status(500).json({ message: 'Error fetching reports data' });
+    }
 });
 
 module.exports = router;
